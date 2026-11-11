@@ -33,6 +33,8 @@ if GStore.TK4_RESPECT_CLEANUP then
 pcall(GStore.TK4_RESPECT_CLEANUP)
 GStore.TK4_RESPECT_CLEANUP = nil
 end
+GStore.TK4_TP_LISTENER_ACTIVE = nil
+GStore.TK4_TP_QUEUED = nil
 pcall(function()
 local CAS_boot = game:GetService("ContextActionService")
 CAS_boot:UnbindAction("TK4_CamSink")
@@ -840,10 +842,21 @@ local TK4_Q_CODE = [[
     warn("[TK4] No source found after teleport! Place the file in the executor workspace.")
   ]]
 pcall(function()
+-- DEDUPE: only ONE OnTeleport listener allowed across all instances.
+-- If a previous instance already registered the listener, skip.
+if GStore.TK4_TP_LISTENER_ACTIVE then
+  print("[TK4] TP listener already registered by previous instance — skipping duplicate")
+  return
+end
+GStore.TK4_TP_LISTENER_ACTIVE = true
 LP.OnTeleport:Connect(function(teleportState)
 if Config.PersistentLoad
 and (teleportState == Enum.TeleportState.Started
 or teleportState == Enum.TeleportState.InProgress) then
+-- DEDUPE: prevent multiple queues from firing on same TP
+if GStore.TK4_TP_QUEUED then return end
+GStore.TK4_TP_QUEUED = true
+task.delay(3, function() GStore.TK4_TP_QUEUED = nil end)
 pcall(saveConfigToFile)
 pcall(TK4_queueOnTeleport, TK4_Q_CODE)
 print("[TK4] TP Queue registered (auto-load next match)")
@@ -4430,6 +4443,8 @@ end
 end))
 GStore.TK4_RESPECT_CLEANUP = function()
 GStore.TK4_SCRIPT_ID = nil
+GStore.TK4_TP_LISTENER_ACTIVE = nil
+GStore.TK4_TP_QUEUED = nil
 pcall(function()
 local CAS_cleanup = game:GetService("ContextActionService")
 CAS_cleanup:UnbindAction("TK4_CamSink")
