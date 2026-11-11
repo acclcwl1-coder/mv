@@ -692,7 +692,7 @@ saveConfigToFile()
 end
 end)
 end)
-local TK4_SCRIPT_URL = "https://raw.githubusercontent.com/acclcwl1-coder/toxicv1/refs/heads/main/TK4_RespectPVP_final_v10_mobile.lua"
+local TK4_SCRIPT_URL = "https://raw.githubusercontent.com/acclcwl1-coder/mv/refs/heads/main/FK4%20RESPECT%20PVP%20GOOD.lua"
 local TK4_queueOnTeleport = nil
 pcall(function()
 TK4_queueOnTeleport =
