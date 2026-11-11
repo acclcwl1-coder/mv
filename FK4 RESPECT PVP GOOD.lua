@@ -28,21 +28,6 @@ vim:SendMouseMoveEvent(m.X + dx, m.Y + dy, game)
 end
 end
 local GStore = (typeof(getgenv) == "function" and getgenv()) or _G
-
--- HARD DEDUPE: only ONE copy per server. Any second execution in the same
--- server exits instantly (prevents the multi-load during the intro screen).
--- To force a fresh reload in the same server, run:
---   getgenv()._TK4_SESSION = nil
-do
-  local jobId = tostring(game.JobId or "unknown")
-  if GStore._TK4_SESSION == jobId then
-    print("[TK4] Duplicate load blocked (already active in this server)")
-    return
-  end
-  GStore._TK4_SESSION = jobId
-  GStore._TK4_LOAD_COUNT = (GStore._TK4_LOAD_COUNT or 0) + 1
-  print("[TK4] Load #" .. GStore._TK4_LOAD_COUNT .. " (server " .. jobId:sub(1, 8) .. ")")
-end
 pcall(function()
 if GStore.TK4_RESPECT_CLEANUP then
 pcall(GStore.TK4_RESPECT_CLEANUP)
