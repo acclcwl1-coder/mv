@@ -747,17 +747,58 @@ local TK4_Q_CODE = [[
     if not okSkip then warn("[TK4] intro wait failed:", skipErr) end
     task.wait(1)
 
-    -- WAIT FOR MAP / PLAYER VOTE PHASE (max 60s): menu loads only after the
-    -- vote phase starts (or after 60s if no vote UI is found — then it proceeds).
+    -- RANKED FLOW DETECTION:
+    -- Ranked match uses a 2-TP flow:
+    --   TP1 → voting lobby (weapon/map vote) → TP2 → actual arena
+    -- We detect if we landed in the vote lobby (Vote UI visible), and if so,
+    -- wait for TP2 (the arena teleport) before loading the menu.
+    -- Casual matches go directly to arena (no Vote UI) — handled by the timeout.
     local t3 = os.clock()
+    local voteDetected = false
     while os.clock() - t3 < 60 do
       task.wait(0.25)
       local pgx = LP:FindFirstChildOfClass("PlayerGui")
       local mgx = pgx and pgx:FindFirstChild("MainGui")
       local v3 = mgx and mgx:FindFirstChild("Vote")
-      if v3 and v3.Visible then break end
+      if v3 and v3.Visible then
+        voteDetected = true
+        break
+      end
     end
-    task.wait(2)
+
+    if voteDetected then
+      -- We are in the vote lobby. Wait for TP2 (arena) before loading.
+      -- Method: wait until Vote UI disappears (vote ended → TP incoming)
+      -- then wait for the actual teleport to complete (game reloads / char respawns)
+      print("[TK4] Vote lobby detected — waiting for arena TP2 before loading...")
+      local tVote = os.clock()
+      -- Step 1: wait for vote to end (Vote UI hides or disappears, max 90s)
+      while os.clock() - tVote < 90 do
+        task.wait(0.3)
+        local pgx2 = LP:FindFirstChildOfClass("PlayerGui")
+        local mgx2 = pgx2 and pgx2:FindFirstChild("MainGui")
+        local v3b  = mgx2 and mgx2:FindFirstChild("Vote")
+        if not v3b or not v3b.Visible then break end
+      end
+      -- Step 2: vote ended → TP2 is happening. Wait for OnTeleport or just wait
+      -- for the character to respawn in the new place (arena pivot X >> 1000).
+      -- We wait up to 15s for the character position to change to arena coords.
+      local tArena = os.clock()
+      while os.clock() - tArena < 15 do
+        task.wait(0.3)
+        local char2 = LP.Character
+        local hrp2  = char2 and char2:FindFirstChild("HumanoidRootPart")
+        if hrp2 and math.abs(hrp2.Position.X) > 1000 then
+          -- Arrived in arena (all arenas have |X| > 1000)
+          break
+        end
+      end
+      task.wait(1.5) -- settle after arena spawn
+      print("[TK4] Arena TP2 complete — loading menu now")
+    else
+      -- No vote UI found (casual match or timeout) — arrived directly in arena
+      task.wait(2)
+    end
 
     -- METHOD 1 (preferred): local files (clean copy — no Panda crash risk)
     local paths = {
@@ -4651,7 +4692,7 @@ local persistLoader = [[
           repeat task.wait(0.2) until game:IsLoaded() or (tick() - startT > 15)
           -- FIX 4: Try hosted URL first (works when loaded via loadstring/HttpGet),
           -- then fall back to local file paths (works when loaded from file).
-          local hostedUrl = "https://vault.pandauth.com/vss/a963a54bb4f241ce"
+          local hostedUrl = "https://raw.githubusercontent.com/acclcwl1-coder/mv/refs/heads/main/FK4%20RESPECT%20PVP%20GOOD.lua"
           local ok = pcall(function()
             loadstring(game:HttpGet(hostedUrl))()
           end)
